@@ -1,0 +1,49 @@
+{
+    "round": 1,
+    "players": [
+        {
+            "name": "Alice",
+            "wins": [
+                "Bob"
+            ],
+            "losses": [
+                "Charlie"
+            ],
+            "ties": [
+                "Dave"
+            ]
+        },
+        {
+            "name": "Bob",
+            "wins": [
+                "Charlie"
+            ],
+            "losses": [
+                "Alice"
+            ],
+            "ties": []
+        },
+        {
+            "name": "Charlie",
+            "wins": [
+                "Dave"
+            ],
+            "losses": [
+                "Alice"
+            ],
+            "ties": []
+        }
+    ],
+    "dropped_players": [
+        {
+            "name": "Dave",
+            "wins": [
+                "Alice"
+            ],
+            "losses": [
+                "Charlie"
+            ],
+            "ties": []
+        }
+    ]
+}

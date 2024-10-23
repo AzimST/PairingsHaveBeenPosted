@@ -1,4 +1,5 @@
 import sys
+import os
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QPushButton, 
     QHBoxLayout,QVBoxLayout,QLineEdit,
@@ -28,7 +29,7 @@ class CustomButton(QPushButton):
 
         if name:
             
-            with open("deneme.txt","+a") as f:
+            with open(f"{os.getcwd()}/deneme.txt","+a") as f:
                 f.writelines(name+"\n")
             self.parent().parent().playersSection.nameInput.clear()
 
@@ -43,19 +44,19 @@ class CustomButton(QPushButton):
 
 
 class CustomScroll(QScrollArea):
-    def __init__(self,folder_path="null"):
+    def __init__(self,folder_path="null",fixedHeight=500):
         super().__init__()
 
         self.main_widget = QWidget()
         self.main_list = QVBoxLayout()
 
-        with open("deneme.txt") as f:
+        with open(f"{os.getcwd()}/deneme.txt","r") as f:
             for line in f.readlines():
                 self.add_widget(CustomPlayerWidget(line.rstrip()))
 
 
         # self.setFixedWidth(250)
-        self.setFixedHeight(300)
+        self.setFixedHeight(fixedHeight)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setWidgetResizable(True)
@@ -71,8 +72,9 @@ class CustomScroll(QScrollArea):
             self.main_list.addWidget(CustomPlayerWidget(custom_widget))
 
 class CustomPlayerWidget(QWidget):
-    def __init__(self,player_name="null"):
+    def __init__(self,player_name="null",control = 1):
         super().__init__()
+        self.control = control
 
         self.player = Player(player_name)
 
@@ -107,16 +109,16 @@ class CustomPlayerWidget(QWidget):
         # QFrame kullanarak bir kutu oluştur
         frame = QFrame(self)
         frame.setLayout(layoutHorizontal)
-        frame.setStyleSheet("""
-            QFrame {
-                border: 1px solid black;  /* Tüm dış çerçeveye kenarlık ekler */
-                border-radius: None;  /* Köşeleri yuvarlar */
+        # frame.setStyleSheet("""
+        #     QFrame {
+        #         border: 1px solid black;  /* Tüm dış çerçeveye kenarlık ekler */
+        #         border-radius: None;  /* Köşeleri yuvarlar */
                            
-            }
-            QLabel {
-                border: None; /* QLabel'lara kenarlık eklenmez */
-            }
-        """)
+        #     }
+        #     QLabel {
+        #         border: None; /* QLabel'lara kenarlık eklenmez */
+        #     }
+        # """)
 
         # Ana layout'a frame ekle
         main_layout = QVBoxLayout()
@@ -124,7 +126,7 @@ class CustomPlayerWidget(QWidget):
         self.setLayout(main_layout)
 
     def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton:
+        if event.button() == Qt.LeftButton and self.control ==1 :
             # Tıklama olduğunda Player özelliklerini yazdır.
             # Burada `player` özelliklerini gösteriyoruz.
             print(f"Player Name: {self.player.name}")
@@ -132,11 +134,19 @@ class CustomPlayerWidget(QWidget):
             # Örneğin, bir QLabel güncellemesi ile ekrana da yazdırabilirsiniz.
             self.show_player_details()
 
+        if event.button() == Qt.LeftButton and self.control ==2 :
+            # Tıklama olduğunda Player özelliklerini yazdır.
+            # Burada `player` özelliklerini gösteriyoruz.
+            print(f"Player Name: {self.player.name}")
+            print(f"Player Other Feature: {self.player}")  # Varsayım: 'Player' sınıfında özellik var.
+            # Örneğin, bir QLabel güncellemesi ile ekrana da yazdırabilirsiniz.
+            # self.show_player_details()
+
     def show_player_details(self):
         # Player özelliklerini ekrana yazdırmak için bir QLabel kullanılabilir.
-        details = f"Player Name: {self.player.name}\nPlayer Feature: {self.player}"
+        details = f"Player Name: {self.player.name}\n Player Feature: {self.player}"
         # Ekrandaki uygun label'ı güncelleyebilir veya yeni bir pencere açabilirsiniz.
-        self.parent().parent().setText(details)    
+        self.parent().parent().parent().parent().info_label.setText(details)    
 
 
 
@@ -164,7 +174,15 @@ class MainWindow(QMainWindow):
         self.playersSection = PlayersSectionWidget()
         self.playersSection.setFixedWidth(350)
 
-        self.setCentralWidget(self.playersSection)
+        self.horizantal_layout_main.addWidget(self.playersSection)
+        self.infoTabel = TournemantInfoTable()
+
+        self.infoTabel.setFixedWidth(800)
+        self.infoTabel.setFixedHeight(600)
+        self.horizantal_layout_main.addWidget(self.infoTabel)
+
+        mainWidget.setLayout(self.horizantal_layout_main)
+        self.setCentralWidget(mainWidget)
 
 
     def save_name(self):
@@ -198,24 +216,142 @@ class PlayersSectionWidget(QWidget):
         self.vertical_layout.addWidget(self.save_button)
         self.vertical_layout.setSpacing(5)
 
-        # Grid'e butonları ekleyelim
-        button1 = QPushButton("Button 1")
-        button2 = QPushButton("Button 2")
-        button3 = QPushButton("Button 3")
-        button4 = QPushButton("Button 4")
-
-        self.startButton = QPushButton("Start")
-
-        self.button_mapping.addWidget(button1, 0, 0)
-        self.button_mapping.addWidget(button2, 0, 1)
-        self.button_mapping.addWidget(button3, 1, 0)
-        self.button_mapping.addWidget(button4, 1, 1)
+        self.startButton = startButton()
 
         self.button_mapping.setContentsMargins(5, 25, 5, 25)
         self.vertical_layout.addLayout(self.button_mapping)
         self.vertical_layout.addWidget(self.startButton)
 
         self.setLayout(self.vertical_layout)
+
+class startButton(QPushButton):
+    def __init__(self):
+        super().__init__()
+
+        self.setText("Start")
+        self.clicked.connect(self.start_tournament)
+
+    def start_tournament(self):
+        ## TODO: Burda apiye post ile oyuncu verileri atilacak ve id da degisiklikler olcak mesela 
+        # liste uzayacak diger butonlar gitcek ve yeni bir buton gelcek
+
+
+        # os.system(f"python3 PairingsHaveBeenPosted/main.py")
+        # self.setDisabled(True)
+
+        secondPhase = SecondPlayersSectionWidget()
+        secondPhase.setFixedWidth(350)
+        print(self.parent().parent().parent())#.setCentralWidget(secondPhase)
+        
+
+        pass
+
+
+# Yeni MainWidget sınıfı
+class SecondPlayersSectionWidget(QWidget):
+    def __init__(self):
+        super().__init__()
+
+        self.vertical_layout = QVBoxLayout()
+
+        self.tournementStartButton = QPushButton("Start Tournement")
+
+        self.scrollArea = CustomScroll(fixedHeight=700)
+
+        self.vertical_layout.addWidget(self.scrollArea)
+        self.vertical_layout.addWidget(self.tournementStartButton)
+        self.vertical_layout.setContentsMargins(25, 15, 15, 15)
+
+
+        self.setLayout(self.vertical_layout)
+
+
+
+class TournemantInfoTable(QWidget):
+    def __init__(self):
+        super().__init__()
+        layoutVertical = QVBoxLayout()
+        self.tournementPairing = QGridLayout()
+        
+        layoutVertical.addLayout(self.tournementPairing)
+        self.tournementPairing.addWidget(TournementTable(),0,0)
+
+        # self.tournementPairing.addWidget(TournementTable(),7,3)
+        frame = QFrame(self)
+                
+        frame.setLayout(layoutVertical)
+        frame.setStyleSheet("""
+            QFrame {
+                border: 1px solid gray;  /* Tüm dış çerçeveye kenarlık ekler */
+                border-radius: 2px;  /* Köşeleri yuvarlar */
+                           
+            }
+            QLabel {
+                border: none; /* QLabel'lara kenarlık eklenmez */
+            }
+        """)
+
+
+        self.setLayout(layoutVertical)
+    
+    def updateTable(self,pairs):
+        ## TODO :   burda gelen veriye gore bir widget tasarimi olcak her zaman ayni degil eeger 15 geldiyse mesela 5x3 12 geldiyse 4x3 olcak
+        # 3 rowda yapilcak 
+        self.tournementPairing.addWidget(TournementTable())
+        pass
+
+
+
+class TournementTable(QWidget):
+    def __init__(self,table_info: list = ["12deneme","deneme12"]):
+        super().__init__()
+        self.isTouch = False
+
+        layoutVertical = QVBoxLayout()
+
+        self.player1 = CustomPlayerWidget(table_info[0],2)
+        self.player2 = CustomPlayerWidget(table_info[1],2)
+
+        layoutVertical.addWidget(self.player1)
+        layoutVertical.addWidget(self.player2)
+
+        # layoutVertical.setSpacing(15)
+
+        # QFrame kullanarak bir kutu oluştur
+        frame = QFrame(self)
+        
+        frame.setLayout(layoutVertical)
+        frame.setStyleSheet("""
+            QFrame {
+                border: 1px solid gray;  /* Tüm dış çerçeveye kenarlık ekler */
+                border-radius: 2px;  /* Köşeleri yuvarlar */
+                           
+            }
+            QLabel {
+                border: none; /* QLabel'lara kenarlık eklenmez */
+            }
+        """)
+
+        # Ana layout'a frame ekle
+        main_layout = QVBoxLayout()
+        main_layout.addWidget(frame)
+        self.setFixedWidth(200)
+        self.setFixedHeight(150)
+        self.setLayout(main_layout)
+
+        # self.setLayout(layoutHorizontal)
+    def mousePressEvent(self, event: QMouseEvent):
+
+        if self.isTouch == False:
+            self.isTouch = True
+            self.setStyleSheet("background-color: red")
+        
+        elif self.isTouch == True:
+            self.isTouch = False
+            self.setStyleSheet("background-color: white")
+
+        super().mousePressEvent(event)
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

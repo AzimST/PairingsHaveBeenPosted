@@ -10,7 +10,17 @@ class Player:
         self.losses = []
         self.ties = []
         self.tiebreaker = ''
-	
+
+    def to_dict(self):
+        return {
+                "name": self.name, 
+                "wins": self.wins, 
+                "losses": self.losses, 
+                "ties": self.ties, 
+                "tiebreaker": self.tiebreaker
+                }
+    
+    
     def __str__(self):
         return "Player Name: " + str(self.name) + " Player Wins: " + str(self.wins) + " Player Losses: " + str(self.losses) + " Player Ties: " + str(self.ties)
 	
