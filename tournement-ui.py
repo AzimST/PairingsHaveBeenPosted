@@ -5,14 +5,14 @@ from PySide6.QtWidgets import (
     QHBoxLayout,QVBoxLayout,QLineEdit,
     QWidget, QLabel,QScrollArea,QFrame
     ,QGridLayout
-    
-    
     )
 import sqlite3 as sql
 from PySide6.QtGui import QPixmap, QTouchEvent, QMouseEvent
 from Player import Player 
 
 from PySide6.QtCore import Qt, Signal
+
+from main import run_tournament,gets_pairs,print_pairings
 
 class CustomButton(QPushButton):
     widgetadded = Signal(QWidget)
@@ -25,22 +25,33 @@ class CustomButton(QPushButton):
 
     def add_widget(self):
         # print(self.parent().parent())
-        name = self.parent().parent().playersSection.nameInput.text()
+        
+        playerSection = self.parent().parent().parent().playersSection
+        name = playerSection.nameInput.text()
 
         if name:
-            
-            with open(f"{os.getcwd()}/deneme.txt","+a") as f:
-                f.writelines(name+"\n")
-            self.parent().parent().playersSection.nameInput.clear()
+            # print(name)
+            with open(f"{os.getcwd()}/deneme.txt","r+") as f:
+                lines=f.readlines()
+                print(lines,"lines")
+                for line in lines:
+                    print(line,name)
+                    if line.rstrip() == name:
+                        playerSection.info_label.setText("Bu isim zaten var lutfen baska bir isim gir")
+                        playerSection.info_label.setStyleSheet("background-color: red")
+                        break
+                    else:
+                        widget = CustomPlayerWidget(name)
+                        self.widgetadded.emit(widget)
+                        f.write(name+"\n")
+                        break
+                    
+            playerSection.nameInput.clear()
 
         else:
-            self.info_label.setText("Lutfen isim gir " + "ISIM GIR PEZEVENG")
+            playerSection.info_label.setText("Lutfen isim gir " + "ISIM GIR PEZEVENG")
+            playerSection.info_label.setStyleSheet("background-color: red")
 
-        widget = CustomPlayerWidget(name)
-        self.widgetadded.emit(widget)
-
-        # scroll_area.main_widget.layout().addWidget(widget)
-        # scroll_area.main_list.addWidget
 
 
 class CustomScroll(QScrollArea):
@@ -87,38 +98,13 @@ class CustomPlayerWidget(QWidget):
 
         layoutVertical.addWidget(self.file_name)
 
-        # layoutVertical.setSpacing(5)
-
-        #TODO RESIM SONRADAN EKLENECEK
-        # self.image_viewer = QLabel(self)
-        # pixmap = QPixmap(f"{image_path}")
-        # scaled_pixmap = pixmap.scaled(125, 125, Qt.KeepAspectRatio)
-
-        # self.image_viewer.setPixmap(scaled_pixmap)
-        # # self.image_viewer.resize(360, 360)
-        # self.image_viewer.setFixedSize(125, 100)
-
-        # layoutHorizontal.addWidget(self.image_viewer)
-
 
         layoutHorizontal.addLayout(layoutVertical)
-
-
-    
 
         # QFrame kullanarak bir kutu oluştur
         frame = QFrame(self)
         frame.setLayout(layoutHorizontal)
-        # frame.setStyleSheet("""
-        #     QFrame {
-        #         border: 1px solid black;  /* Tüm dış çerçeveye kenarlık ekler */
-        #         border-radius: None;  /* Köşeleri yuvarlar */
-                           
-        #     }
-        #     QLabel {
-        #         border: None; /* QLabel'lara kenarlık eklenmez */
-        #     }
-        # """)
+    
 
         # Ana layout'a frame ekle
         main_layout = QVBoxLayout()
@@ -198,9 +184,9 @@ class PlayersSectionWidget(QWidget):
         self.vertical_layout = QVBoxLayout()
         self.button_mapping = QGridLayout()
 
-        self.scrollArea = CustomScroll()
+        self.playerListArea = CustomScroll()
 
-        self.vertical_layout.addWidget(self.scrollArea)
+        self.vertical_layout.addWidget(self.playerListArea)
 
         self.nameInput = QLineEdit(self)
         self.nameInput.setPlaceholderText("Lütfen İsminizi Buraya Giriniz.")
@@ -209,7 +195,7 @@ class PlayersSectionWidget(QWidget):
         self.info_label.setWordWrap(True)
 
         self.save_button = CustomButton()
-        self.save_button.widgetadded.connect(self.scrollArea.add_widget)
+        self.save_button.widgetadded.connect(self.playerListArea.add_widget)
 
         self.vertical_layout.addWidget(self.info_label)
         self.vertical_layout.addWidget(self.nameInput)
@@ -224,6 +210,29 @@ class PlayersSectionWidget(QWidget):
 
         self.setLayout(self.vertical_layout)
 
+    def getPlayerList(self):
+        player_list = []
+        with open(f"{os.getcwd()}/deneme.txt","r") as f:
+            for line in f.readlines():
+                player_list.append(line.rstrip())
+        return player_list
+    
+    def get_scroll_area_widgets(self):
+        # Ana widget'ı scrollArea'dan al
+        content_widget = self.playerListArea.widget()  # QScrollArea içindeki ana widget
+
+        # Alt elemanlara erişim
+        if content_widget is not None:
+            player_list = []
+            print(content_widget.findChildren(CustomPlayerWidget),"dsadsa")
+            for i in content_widget.findChildren(CustomPlayerWidget):
+                player_list.append(i.player)
+            return player_list  # QScrollArea içindeki tüm alt widget'ları döndürür
+        return []
+
+
+    
+
 class startButton(QPushButton):
     def __init__(self):
         super().__init__()
@@ -234,17 +243,28 @@ class startButton(QPushButton):
     def start_tournament(self):
         ## TODO: Burda apiye post ile oyuncu verileri atilacak ve id da degisiklikler olcak mesela 
         # liste uzayacak diger butonlar gitcek ve yeni bir buton gelcek
+        player_list = self.parent().get_scroll_area_widgets()
+        if len(player_list)< 4:
+            self.parent().info_label.setText("En az 4 oyuncu olmalıdır")
+            self.parent().info_label.setStyleSheet("color:red")
+            self.parent().info_label.style().polish(self.parent().info_label)
+            return
 
+        print(player_list)
 
-        # os.system(f"python3 PairingsHaveBeenPosted/main.py")
-        # self.setDisabled(True)
+        self.parent().info_label.setText("Turnuva başladı")
 
         secondPhase = SecondPlayersSectionWidget()
         secondPhase.setFixedWidth(350)
         print(self.parent().parent().parent())#.setCentralWidget(secondPhase)
         
-
+        pair=gets_pairs(player_list,1)
+        print(pair)
+        print_pairings(pair)
         pass
+
+
+
 
 
 # Yeni MainWidget sınıfı

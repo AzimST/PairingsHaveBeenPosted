@@ -351,11 +351,153 @@ def run_tournament(players, roundNumber, pairs=None):
 
     # TURNUVA BITINCE SONUCLARI GOSTERIYOR
     calculate_standings(players)
-    print_standings(players)
+    print_standings(players())
 
+
+def gets_pairs(players,roundNumber,pairs=None):
+    _calculate_num_rounds(players)
+    # print()
+    # print("--------------Round", roundNumber, "Pairings--------------")
+    if (
+        pairs == None
+    ):  # If we need to generate pairs(i.e. not given from a savefile) then call the pair_round function
+        ## buda burda calissin reqe gerek yok
+        pairs = _pair_round(players)
+    ## pairs post methdou ile atilmasi gerekiyor 
+    ## ui tarafindan get le cekilcek ve turun karsilasmlari ekrana yazilcak
+    #TODO pairs JSON FORMATA DONUSTURULECEK 
+    #TODO pairs post metodu ile atilacak
+    # print(pairs)
+    # ## bunu uida gostercez
+    # print_pairings(pairs)
+
+    ## bu dosyalar kaydolsun ya zarari yok
+    write_to_file(players, roundNumber)
+    append_pairings_to_file(f"{roundNumber}", pairs)
+    # print()
+    if len(players) % 2 != 0:  # if there is a BYE
+        pairs[len(pairs) - 1][0].wins.append(
+            "BYE"
+        )  # give the player that has a BYE a win
+        del pairs[
+            len(pairs) - 1
+        ]  # delete that pairing before get results is called
+
+    return pairs
+
+# def get_results(pairs, players):
+#     ## turnuva sonuclarini burda gircez 
+#     get_results(pairs, players)
+#     ## siralamalar burda belirleniyor
+#     end_of_round_cleanup(players)
+#     roundNumber += 1
+#     print("*Results up to round " + str(roundNumber - 1) + " have been saved.\n")
+#     pairs = (
+#         None  # need to reset pairs to none so that we generate a new set of pairs
+#     )
+
+def run_tournament(players, roundNumber, pairs=None):
+    ## herhangi bir req atmaya gerek yok burda calissin
+
+    _calculate_num_rounds(players)
+    if roundNumber == 1:
+        ## ui uzerine post atilcak kac roaund oynandigi filan
+        print("Today we are playing", num_rounds, "rounds.")
+    for i in range(roundNumber, num_rounds + 1):
+        print()
+        print("--------------Round", roundNumber, "Pairings--------------")
+        if (
+            pairs == None
+        ):  # If we need to generate pairs(i.e. not given from a savefile) then call the pair_round function
+            ## buda burda calissin reqe gerek yok
+            pairs = _pair_round(players)
+        ## pairs post methdou ile atilmasi gerekiyor 
+        ## ui tarafindan get le cekilcek ve turun karsilasmlari ekrana yazilcak
+        #TODO pairs JSON FORMATA DONUSTURULECEK 
+        #TODO pairs post metodu ile atilacak
+        print(pairs)
+        ## bunu uida gostercez
+        print_pairings(pairs)
+
+        ## bu dosyalar kaydolsun ya zarari yok
+        write_to_file(players, roundNumber)
+        append_pairings_to_file(f"{roundNumber}", pairs)
+        print()
+        if len(players) % 2 != 0:  # if there is a BYE
+            pairs[len(pairs) - 1][0].wins.append(
+                "BYE"
+            )  # give the player that has a BYE a win
+            del pairs[
+                len(pairs) - 1
+            ]  # delete that pairing before get results is called
+        return pairs
+    
+        ## turnuva sonuclarini burda gircez 
+        get_results(pairs, players)
+        ## siralamalar burda belirleniyor
+        end_of_round_cleanup(players)
+        roundNumber += 1
+        print("*Results up to round " + str(roundNumber - 1) + " have been saved.\n")
+        pairs = (
+            None  # need to reset pairs to none so that we generate a new set of pairs
+        )
+
+    # TURNUVA BITINCE SONUCLARI GOSTERIYOR
+    calculate_standings(players)
+    print_standings(players)
 
 # very important function that allows results to be saved into files
 # in between rounds. Can also do many things to force pairings as well
+
+
+def write_to_file(players, round):
+    savefile = open("{}".format(round), "w")
+    savefile.write(str(round) + "\n")
+    for player in players + dropped_players:
+        savefile.write(player.name + ",")
+    savefile.write("\n")
+    for player in players + dropped_players:
+        savefile.write("%" + player.name + "\n")
+        savefile.write("$wins\n")
+        for opponent in player.wins:
+            if opponent == "BYE":
+                savefile.write("BYE" + "\n")
+            else:
+                savefile.write(opponent.name + "\n")
+        savefile.write("$losses\n")
+        for opponent in player.losses:
+            savefile.write(opponent.name + "\n")
+        savefile.write("$ties\n")
+        for opponent in player.ties:
+            savefile.write(opponent.name + "\n")
+
+    savefile.close()
+
+
+def append_pairings_to_file(filename, pairs):
+
+    savefile = open(filename, "a")
+    savefile.write("*pairs:")
+    for pair in pairs:
+        if pair[1] == "BYE":
+            savefile.write(pair[0].name + ",BYE,")
+        else:
+            savefile.write(pair[0].name + "," + pair[1].name + ",")
+
+    savefile.close()
+
+## yardimci
+def print_welcome_screen():
+    print("Welcome to Yishan's Tournament Software!\n")
+    print("---------------How To Use---------------\n")
+    print("1. Press s or n to either load a saved tournament or start a new one.")
+    print("2. Find the PutYourTournamentParticipantsHere.txt file and enter participans on separate lines.")
+    print(
+        "3. Follow on screen prompts to run tournament, all command available are enclosed in ().\n"
+    )
+
+## Asil fonksiyon
+
 # change mistakes/go back in time/add players if users understand file structure
 def run_from_file(filename):
     playerdict = {
@@ -418,112 +560,52 @@ def run_from_file(filename):
     savefile.close()
     run_tournament(players, round_num, pairs)
 
-
-def write_to_file(players, round):
-    savefile = open("{}".format(round), "w")
-    savefile.write(str(round) + "\n")
-    for player in players + dropped_players:
-        savefile.write(player.name + ",")
-    savefile.write("\n")
-    for player in players + dropped_players:
-        savefile.write("%" + player.name + "\n")
-        savefile.write("$wins\n")
-        for opponent in player.wins:
-            if opponent == "BYE":
-                savefile.write("BYE" + "\n")
-            else:
-                savefile.write(opponent.name + "\n")
-        savefile.write("$losses\n")
-        for opponent in player.losses:
-            savefile.write(opponent.name + "\n")
-        savefile.write("$ties\n")
-        for opponent in player.ties:
-            savefile.write(opponent.name + "\n")
-
-    savefile.close()
-
-
-def append_pairings_to_file(filename, pairs):
-
-    savefile = open(filename, "a")
-    savefile.write("*pairs:")
-    for pair in pairs:
-        if pair[1] == "BYE":
-            savefile.write(pair[0].name + ",BYE,")
-        else:
-            savefile.write(pair[0].name + "," + pair[1].name + ",")
-
-    savefile.close()
-
-## yardimci
-def print_welcome_screen():
-    print("Welcome to Yishan's Tournament Software!\n")
-    print("---------------How To Use---------------\n")
-    print("1. Press s or n to either load a saved tournament or start a new one.")
-    print("2. Find the PutYourTournamentParticipantsHere.txt file and enter participans on separate lines.")
-    print(
-        "3. Follow on screen prompts to run tournament, all command available are enclosed in ().\n"
-    )
-
-## Asil fonksiyon
+## HERZAMAN YENI BIR TURNUVA BASLATILCAK ESKISINDE DEVAM ETMEK SIMDILIK YOK
 def main():
     ##apide gerek yok
     print_welcome_screen()
-    ## input uidan gelcek
-    # shouldLoadFromSavefile = req.get("shouldLoadFromSavefile")
-    #  
-    shouldLoadFromSavefile = prompt.for_string(
-        "Do you want to start a (n)ew tournament or (r)eload a tournament?",
-        is_legal=(lambda x: x == "r" or x == "n"),
-        error_message="Please enter n or r.",
-    )
-    ## bende reload olmasin amq
-    if shouldLoadFromSavefile == "r":
-        fileStr = prompt.for_string("Enter the (round number) you want to reload from")
-        run_from_file(fileStr)
-    else:
-        ## kullanici isimleri direk ui tarafindan dolduurluk gelcek
-        # players = req.get("players")
+ 
+
+    players = []
+
+    while len(players) < 4:
+        print()
+        print(
+            "You need at least 4 players to start a tournaments, please edit PutYourTournamentParticipantsHere.txt and press enter"
+        )
+        input()
+        fob.close()
         fob = goody.safe_open(
-            "Press enter once all your partipants are in PutYourTournamentParticipantsHere",
+            "Don't forget to save the file!",
             "r",
             "There was an error finding/opening the file.",
             default="PutYourTournamentParticipantsHere.txt",
         )
         players = file.get_names(fob)
-        while len(players) < 4:
-            print()
-            print(
-                "You need at least 4 players to start a tournaments, please edit PutYourTournamentParticipantsHere.txt and press enter"
-            )
-            input()
-            fob.close()
-            fob = goody.safe_open(
-                "Don't forget to save the file!",
-                "r",
-                "There was an error finding/opening the file.",
-                default="PutYourTournamentParticipantsHere.txt",
-            )
-            players = file.get_names(fob)
 
-        while True:
 
-            for player in players:
-                print(player.name)
-            print("***There are currently", len(players), "players enrolled.***")
-            ## uidan input alcak 
-            # start = req.get("start")
-            start = prompt.for_string(
-                "Start tournament? Enter (y)es or (n)o",
-                is_legal=(lambda x: x == "y" or x == "n"),
-            
-                error_message="Please enter y or n.",
-            )
-            if start == "y":
-                run_tournament(players, 1)
-                break
-            else:
-                sys.exit("Ok, no rush! Restart the program when you're ready!") 
+
+    while True:
+
+        for player in players:
+            print(player.name)
+        print("***There are currently", len(players), "players enrolled.***")
+        ## uidan input alcak 
+        # start = req.get("start")
+        start = prompt.for_string(
+            "Start tournament? Enter (y)es or (n)o",
+            is_legal=(lambda x: x == "y" or x == "n"),
+        
+            error_message="Please enter y or n.",
+        )
+        if start == "y":
+            run_tournament(players, 1)
+            break
+        else:
+            sys.exit("Ok, no rush! Restart the program when you're ready!") 
+
+
+
 
 
 
