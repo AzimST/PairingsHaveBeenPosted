@@ -86,8 +86,10 @@ class CustomPlayerWidget(QWidget):
     def __init__(self,player_name="null",control = 1):
         super().__init__()
         self.control = control
-
-        self.player = Player(player_name)
+        if isinstance(player_name,str):
+            self.player = Player(player_name)
+        elif isinstance(player_name,Player):
+            self.player = player_name
 
         layoutVertical = QVBoxLayout()
         layoutHorizontal = QHBoxLayout()
@@ -164,7 +166,7 @@ class MainWindow(QMainWindow):
         self.infoTabel = TournemantInfoTable()
 
         self.infoTabel.setFixedWidth(800)
-        self.infoTabel.setFixedHeight(600)
+        self.infoTabel.setFixedHeight(700)
         self.horizantal_layout_main.addWidget(self.infoTabel)
 
         mainWidget.setLayout(self.horizantal_layout_main)
@@ -258,7 +260,11 @@ class startButton(QPushButton):
         secondPhase.setFixedWidth(350)
         print(self.parent().parent().parent())#.setCentralWidget(secondPhase)
         
+
         pair=gets_pairs(player_list,1)
+        
+        self.parent().parent().parent().infoTabel.updateTable(pair)
+
         print(pair)
         print_pairings(pair)
         pass
@@ -290,44 +296,86 @@ class SecondPlayersSectionWidget(QWidget):
 class TournemantInfoTable(QWidget):
     def __init__(self):
         super().__init__()
-        layoutVertical = QVBoxLayout()
+
+        self.scrollArea = QScrollArea(self)
+        self.scrollArea.setWidgetResizable(True)
+
+        self.inner_widget = QWidget()
+        self.scrollArea.setWidget(self.inner_widget)
+        
+        self.layout_main = QVBoxLayout(self)
+        self.layout_main.addWidget(self.scrollArea)
+
         self.tournementPairing = QGridLayout()
         
-        layoutVertical.addLayout(self.tournementPairing)
-        self.tournementPairing.addWidget(TournementTable(),0,0)
+        self.inner_widget.setLayout(self.tournementPairing)
+
+        self.min_table_size = (150, 100)
+        self.max_table_size = (250, 200)
 
         # self.tournementPairing.addWidget(TournementTable(),7,3)
-        frame = QFrame(self)
+        # frame = QFrame(self)
                 
-        frame.setLayout(layoutVertical)
-        frame.setStyleSheet("""
-            QFrame {
-                border: 1px solid gray;  /* Tüm dış çerçeveye kenarlık ekler */
-                border-radius: 2px;  /* Köşeleri yuvarlar */
+        # frame.setLayout(self.layout_main)
+        # frame.setStyleSheet("""
+        #     QFrame {
+        #         border: 1px solid gray;  /* Tüm dış çerçeveye kenarlık ekler */
+        #         border-radius: 2px;  /* Köşeleri yuvarlar */
                            
-            }
-            QLabel {
-                border: none; /* QLabel'lara kenarlık eklenmez */
-            }
-        """)
+        #     }
+        #     QLabel {
+        #         border: none; /* QLabel'lara kenarlık eklenmez */
+        #     }
+        # """)
 
 
-        self.setLayout(layoutVertical)
+        # self.setLayout(layoutVertical)
     
     def updateTable(self,pairs):
         ## TODO :   burda gelen veriye gore bir widget tasarimi olcak her zaman ayni degil eeger 15 geldiyse mesela 5x3 12 geldiyse 4x3 olcak
         # 3 rowda yapilcak 
-        self.tournementPairing.addWidget(TournementTable())
-        pass
+        columns = 3  # Her satırda 3 sütun olacak
+
+        # Mevcut tabloyu temizle
+        for i in reversed(range(self.tournementPairing.count())): 
+            widget_to_remove = self.tournementPairing.itemAt(i).widget()
+            if widget_to_remove is not None:
+                widget_to_remove.deleteLater()
+        
+        # Gelen veriye göre tabloyu güncelle
+        for index, table in enumerate(pairs):
+            row = index // columns  # Satır sayısını belirle
+            col = index % columns   # Sütun sayısını belirle
+
+            # Yeni widget'ı oluştur ve grid'e ekle
+            tournement_widget = TournementTable(table_info=table,table_number=index)
+            # tournement_widget.setFixedSize(*self.min_table_size)  # Min boyut
+            self.tournementPairing.addWidget(tournement_widget, row, col)
+
+        self.adjustGridLayout()
+    
+    def adjustGridLayout(self):
+        available_width = self.scrollArea.width()
+        table_width = self.min_table_size[0]
+        columns = max(1, available_width // table_width)
+
+        for i in range(self.tournementPairing.count()):
+            widget = self.tournementPairing.itemAt(i).widget()
+            widget.setFixedSize(*self.max_table_size if columns > 3 else self.min_table_size)
+
 
 
 
 class TournementTable(QWidget):
-    def __init__(self,table_info: list = ["12deneme","deneme12"]):
+    def __init__(self,table_info: list = ["12deneme","deneme12"],table_number=0):
         super().__init__()
         self.isTouch = False
 
         layoutVertical = QVBoxLayout()
+
+        self.title = QLabel(f"Table {table_number+1}")
+        layoutVertical.addWidget(self.title, alignment=Qt.AlignCenter)
+
 
         self.player1 = CustomPlayerWidget(table_info[0],2)
         self.player2 = CustomPlayerWidget(table_info[1],2)
@@ -355,11 +403,14 @@ class TournementTable(QWidget):
         # Ana layout'a frame ekle
         main_layout = QVBoxLayout()
         main_layout.addWidget(frame)
-        self.setFixedWidth(200)
-        self.setFixedHeight(150)
+
+        # self.setFixedWidth(200)
+        # self.setFixedHeight(150)
         self.setLayout(main_layout)
 
         # self.setLayout(layoutHorizontal)
+
+
     def mousePressEvent(self, event: QMouseEvent):
 
         if self.isTouch == False:
