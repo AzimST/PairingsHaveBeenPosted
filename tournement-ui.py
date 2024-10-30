@@ -12,7 +12,7 @@ from Player import Player
 
 from PySide6.QtCore import Qt, Signal
 
-from main import run_tournament,gets_pairs,print_pairings
+from main import run_tournament,gets_pairs,print_pairings,calculate_standings,print_standings
 
 class CustomButton(QPushButton):
     widgetadded = Signal(QWidget)
@@ -221,9 +221,25 @@ class StartButton(QPushButton):
         self.parent().info_label.setText("Turnuva başladı")
         self.parent().info_label.setStyleSheet("background-color: none")
 
-        pair=gets_pairs(player_list,1)        
+        try:
+            pair=gets_pairs(player_list,1)        
+        except AssertionError as a:
+            print(a,"AGA herkes birbiryle oynadi oyun bitti")
+            calculate_standings(player_list)
+            resStr = print_standings(player_list)
+            QMessageBox.information(self, "Oyun bitti", resStr)
+            exit("Oyun bitti")
+
+
+
         self.parent().parent().parent().infoTabel.updateTable(pair)
         print_pairings(pair)
+
+    # def reRoundGame(self):
+    #     player_list = self.parent().get_scroll_area_widgets()
+    #     pair=gets_pairs(player_list,1)        
+    #     self.parent().parent().parent().infoTabel.updateTable(pair)
+    #     print_pairings(pair)
 
 
 class SubmitButton(QPushButton):
@@ -257,6 +273,11 @@ class SubmitButton(QPushButton):
         #     winner.add_win(loser)
         #     # Kaybedenin losses listesine kazananı ekle
         #     loser.add_loss(winner)
+
+        # pair=gets_pairs(player_list,1)        
+        # self.parent().parent().parent().infoTabel.updateTable(pair)
+        # print_pairings(pair)
+        print(self.parent().parent().parent().playersSection.startButton.setText("ReReound"))
         self.submitAccept.emit()
         # Sonuçların işlendiği mesajı göster
         QMessageBox.information(self, "Sonuçlar Kaydedildi", "Bütün sonuçlar başarıyla kaydedildi.")

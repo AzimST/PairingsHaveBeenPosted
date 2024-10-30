@@ -292,8 +292,11 @@ def get_win_percentage(player):
 
 def print_standings(players):
     players = sorted(players, key=lambda x: -int(x.tiebreaker))
+    resStr =""
     for i in range(len(players)):
+        resStr += f"{i + 1} {players[i].name} Tie-breaker number: {players[i].tiebreaker}\n"
         print(i + 1, players[i].name, "Tie-breaker number: " + players[i].tiebreaker)
+    return resStr
 
 
 # runs tournament normally, if pairs is called with a value, it means it was run from
