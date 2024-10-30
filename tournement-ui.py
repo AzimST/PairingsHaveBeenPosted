@@ -4,7 +4,7 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QPushButton, 
     QHBoxLayout,QVBoxLayout,QLineEdit,
     QWidget, QLabel,QScrollArea,QFrame
-    ,QGridLayout
+    ,QGridLayout,QMessageBox
     )
 import sqlite3 as sql
 from PySide6.QtGui import QPixmap, QTouchEvent, QMouseEvent
@@ -98,6 +98,7 @@ class CustomScroll(QScrollArea):
         if isinstance(custom_widget, str):
             self.main_list.addWidget(CustomPlayerWidget(custom_widget))
 
+
 class CustomPlayerWidget(QWidget):
     clicked = Signal()
 
@@ -155,8 +156,6 @@ class CustomPlayerWidget(QWidget):
         self.parent().parent().parent().parent().info_label.setText(details)    
 
 
-
-
 # Yeni MainWidget sınıfı
 class PlayersSectionWidget(QWidget):
     def __init__(self):
@@ -200,8 +199,6 @@ class PlayersSectionWidget(QWidget):
                 player_list.append(i.player)
             return player_list  # QScrollArea içindeki tüm alt widget'ları döndürür
         return []
-
-
     
 
 class StartButton(QPushButton):
@@ -229,7 +226,45 @@ class StartButton(QPushButton):
         print_pairings(pair)
 
 
+class SubmitButton(QPushButton):
+    submitAccept = Signal()
+
+    def __init__(self):
+        super().__init__()
+
+        self.setText("Submit Results")
+        self.clicked.connect(self.process_results)
+
+    def process_results(self):
+        # Tüm tabloları dolaşarak sonuçları işleme
+
+        tables = self.parent().tables
+        
+
+        # for table in tables:
+        #     player1_widget = table.player1
+        #     player2_widget = table.player2
+
+
+        #     if player1_widget.player.is_selected:
+        #         winner = player1_widget.player
+        #         loser = player2_widget.player
+        #     else:
+        #         winner = player2_widget.player
+        #         loser = player1_widget.player
+            
+        #     # Kazananın wins listesine kaybedeni ekle
+        #     winner.add_win(loser)
+        #     # Kaybedenin losses listesine kazananı ekle
+        #     loser.add_loss(winner)
+        self.submitAccept.emit()
+        # Sonuçların işlendiği mesajı göster
+        QMessageBox.information(self, "Sonuçlar Kaydedildi", "Bütün sonuçlar başarıyla kaydedildi.")
+
+
 class TournemantInfoTable(QWidget):
+    all_results_entered = Signal()  
+
     def __init__(self):
         super().__init__()
         self.scrollArea = QScrollArea(self)
@@ -240,6 +275,12 @@ class TournemantInfoTable(QWidget):
         self.min_table_size = (150, 100)
         self.max_table_size = (250, 200)
 
+        self.submitButton = SubmitButton()
+        self.submitButton.setEnabled(False)
+        # self.submitButton.clicked.connect(self.submitButton.process_results())
+
+        self.tables=[]
+
         self._setup_ui()
 
 
@@ -247,7 +288,9 @@ class TournemantInfoTable(QWidget):
         self.scrollArea.setWidgetResizable(True)
         self.scrollArea.setWidget(self.inner_widget)
         self.layout_main.addWidget(self.scrollArea)
+        self.layout_main.addWidget(self.submitButton)
         self.inner_widget.setLayout(self.tournementPairing)
+        self.setLayout(self.layout_main)
   
     def updateTable(self,pairs):
 
@@ -257,12 +300,15 @@ class TournemantInfoTable(QWidget):
             widget_to_remove = self.tournementPairing.itemAt(i).widget()
             if widget_to_remove:
                 widget_to_remove.deleteLater()
-        
-        # Gelen veriye göre tabloyu güncelle
+        self.tables=[]
+
+        # Gelen veriye göre tabloyu güncelle    
         for index, table in enumerate(pairs):
 
             row, col = divmod(index, 3)
             tournement_widget = TournementTable(table_info=table,table_number=index+1)
+            tournement_widget.result_entered.connect(self.check_all_results)
+            self.tables.append(tournement_widget)
             self.tournementPairing.addWidget(tournement_widget, row, col)
 
         self.adjustGridLayout()
@@ -276,12 +322,45 @@ class TournemantInfoTable(QWidget):
             widget = self.tournementPairing.itemAt(i).widget()
             widget.setFixedSize(*self.max_table_size if columns > 3 else self.min_table_size)
 
+    def check_all_results(self):
+        if all(table.isTakeResult for table in self.tables):
+            self.submitButton.setEnabled(True)
+            self.all_results_entered.emit()
 
+            self.submitButton.submitAccept.connect(self.get_results)
+            # self.submitButton.submitAccept.connect(self.resetIsTakereult)
+            # print(a,"dsadasdsa")
+            
+            # results = self.get_results()
+            # for i in results:
+            #     print(i)
+            # print("Results:", results)
+    
+    def resetIsTakereult(self):
+        for table in self.tables:
+            table.isTakeResult = False
+
+    def get_results(self):
+        # Her bir tablodan kazanan ve kaybedeni al ve bir listeye ekle
+        results = [[table.winner, table.loser] for table in self.tables if table.isTakeResult]
+        for winner,loser in results:
+            winner.player.add_win(loser.player)
+            loser.player.add_loss(winner.player)
+            print(winner.player.name,end="////")
+            print(loser.player.name)
+            print(f"Winner: {winner.player} -\n Loser: {loser.player}")
+
+        # print("Results:", results)
+        self.resetIsTakereult()
+        return results
 
 
 class TournementTable(QWidget):
+    result_entered = Signal()  
+
     def __init__(self,table_info: list = ["12deneme","deneme12"],table_number=0):
         super().__init__()
+        self.isTakeResult = False
         self.isTouch = False
         self._setup_ui(table_info,table_number)
 
@@ -323,7 +402,6 @@ class TournementTable(QWidget):
                 border: none; /* QLabel'lara kenarlık eklenmez */
             }
         """)
-
         self.player2.setStyleSheet("""
                 border: 1px solid gray;  /* Tüm dış çerçeveye kenarlık ekler */
                 border-radius: 2px;  /* Köşeleri yuvarlar */
@@ -345,23 +423,35 @@ class TournementTable(QWidget):
     def uptade_selection(self,selected_player):
         self.player1.set_selected(selected_player==self.player1)
         self.player2.set_selected(selected_player==self.player2)
+        self.isTakeResult = True
 
-    def mousePressEvent(self, event: QMouseEvent):
-        # self.setStyleSheet("background-color: green")
-        self.setStyleSheet("""
-                           
-                            QFrame {
-                                background-color: rgba(100, 75, 255, 100)
+        # Kazanan oyuncuyu işaretle
+        print("merhaba")
+        self.winner = self.player1 if selected_player == self.player1 else self.player2
+        self.loser = self.player2 if selected_player == self.player1 else self.player1
+        self.result_entered.emit()
 
-                            }
-                            QLabel {
-                                background-color: none;
+    # def mousePressEvent(self, event: QMouseEvent):
+    #     # self.setStyleSheet("background-color: green")
+    #     if self.isTakeResult:
+    #         self.setStyleSheet("background-color: white")
+    #         self.isTakeResult = False
+    #     else:
+    #         self.setStyleSheet("""
+                            
+    #                             QFrame {
+    #                                 background-color: rgba(100, 75, 255, 100)
 
-                                border: none; /* QLabel'lara kenarlık eklenmez */
-                            }
-                           """)  # Yarı saydam yeşil
+    #                             }
+    #                             QLabel {
+    #                                 background-color: none;
 
-        super().mousePressEvent(event)
+    #                                 border: none; /* QLabel'lara kenarlık eklenmez */
+    #                             }
+    #                         """)  # Yarı saydam yeşil
+    #         self.isTakeResult = True
+
+    #     super().mousePressEvent(event)
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -384,6 +474,12 @@ class MainWindow(QMainWindow):
 
         mainWidget.setLayout(self.horizantal_layout_main)
         self.setCentralWidget(mainWidget)
+        self.infoTabel.all_results_entered.connect(self.show_all_results_entered_message)
+
+
+    def show_all_results_entered_message(self):
+        QMessageBox.information(self, "Bilgi", "Tum sonuclar girildi.")
+        print("Tum sonuclar girildi.")
 
 
 
